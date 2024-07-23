@@ -22,11 +22,14 @@ repositories {
     mavenCentral()
 }
 
+val taieVersion = "0.2.2"
+
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
     implementation(libs.annotations)
     testImplementation("junit:junit:4.13.2")
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
+    implementation("net.pascal-lab:tai-e:$taieVersion") // Tai-e dependency
 }
 
 // Set the JVM language level used to build the project.
