@@ -20,16 +20,26 @@ version = properties("pluginVersion").get()
 // Configure project's dependencies
 repositories {
     mavenCentral()
+    maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
 }
 
-val taieVersion = "0.2.2"
+val taieVersion = "0.5.1-SNAPSHOT"
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
     implementation(libs.annotations)
     testImplementation("junit:junit:4.13.2")
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
-    implementation("net.pascal-lab:tai-e:$taieVersion") // Tai-e dependency
+    implementation("net.pascal-lab:tai-e:$taieVersion")
+    "net.pascal-lab:tai-e:$taieVersion".let {
+        compileOnly(it) { isTransitive = false }
+        testCompileOnly(it) { isTransitive = false }
+        runtimeOnly(it)
+    }
+    implementation("org.apache.logging.log4j:log4j-api:2.20.0")
+    implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+    implementation("org.slf4j:slf4j-nop:2.0.7")
+
 }
 
 // Set the JVM language level used to build the project.
@@ -70,6 +80,21 @@ koverReport {
 
 // Config generated parser to source
 sourceSets["main"].java.srcDirs("src/main/gen")
+
+tasks.jar {
+    configurations.runtimeClasspath.get().filter {
+        it.name == "tai-e-0.5.1-SNAPSHOT.jar"
+    }.singleFile.let {
+        from(zipTree(it))
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.prepareSandbox {
+    exclude {
+        it.name == "tai-e-0.5.1-SNAPSHOT.jar"
+    }
+}
 
 // Clean old parser
 tasks.register<Delete>("cleanTirParser") {
