@@ -21,7 +21,7 @@
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow anchor="bottom" id="Tai-e" icon="/META-INF/pluginIcon.svg"
+        <toolWindow anchor="bottom" id="Tai-e" icon="/META-INF/toolBarIcon.svg"
                     factoryClass="pascal.taie.intellij.core.ToolWindowFactoryImpl"/>
         <fileType name="Tai-e IR File"
                   implementationClass="pascal.taie.intellij.tir.TirFileType"
