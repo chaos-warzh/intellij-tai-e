@@ -13,6 +13,7 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.CompilerModuleExtension;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
@@ -134,29 +135,32 @@ public abstract class TaieStarter {
     protected abstract void onFinish();
 
     private String locateMainClass(Project project, Module module) {
-        String mainClassPath = "";
+        return ApplicationManager.getApplication().runReadAction((Computable<String>) () -> {
+            String mainClassPath = "";
 
-        GlobalSearchScope searchScope = GlobalSearchScope.moduleScope(module);
+            GlobalSearchScope searchScope = GlobalSearchScope.moduleScope(module);
+            String[] classNames = PsiShortNamesCache.getInstance(project).getAllClassNames();
 
-        String[] classNames = PsiShortNamesCache.getInstance(project).getAllClassNames();
-
-        for (String className : classNames) {
-            PsiClass[] psiClasses = PsiShortNamesCache.getInstance(project).getClassesByName(className, searchScope);
-            for (PsiClass psiClass : psiClasses) {
-                PsiMethod[] methods = psiClass.getMethods();
-                for (PsiMethod method : methods) {
-                    if (isMainMethod(method)) {
-                        mainClassPath = psiClass.getQualifiedName();
-                        logger.info("Main class found: " + mainClassPath);
+            for (String className : classNames) {
+                PsiClass[] psiClasses = PsiShortNamesCache.getInstance(project).getClassesByName(className, searchScope);
+                for (PsiClass psiClass : psiClasses) {
+                    PsiMethod[] methods = psiClass.getMethods();
+                    for (PsiMethod method : methods) {
+                        if (isMainMethod(method)) {
+                            mainClassPath = psiClass.getQualifiedName();
+                            logger.info("Main class found: " + mainClassPath);
+                        }
                     }
                 }
             }
-        }
-        if (mainClassPath == null || mainClassPath.isEmpty()) {
-            logger.error("Main class not found");
-            throw new RuntimeException("Main class not found");
-        }
-        return mainClassPath;
+
+            if (mainClassPath == null || mainClassPath.isEmpty()) {
+                logger.error("Main class not found");
+                throw new RuntimeException("Main class not found");
+            }
+
+            return mainClassPath;
+        });
     }
 
     private void checkIfCompiled() {
