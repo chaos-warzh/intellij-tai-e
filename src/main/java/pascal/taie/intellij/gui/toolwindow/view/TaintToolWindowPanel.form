@@ -76,7 +76,7 @@
         <properties/>
         <border type="none"/>
         <children>
-          <component id="72f33" class="javax.swing.JTable" binding="taintTable">
+          <component id="72f33" class="com.intellij.ui.table.JBTable" binding="taintTable">
             <constraints/>
             <properties/>
           </component>
