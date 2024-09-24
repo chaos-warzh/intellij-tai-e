@@ -85,7 +85,9 @@ tasks.jar {
     configurations.runtimeClasspath.get().filter {
         it.name == "tai-e-0.5.1-SNAPSHOT.jar"
     }.singleFile.let {
-        from(zipTree(it))
+//        from(zipTree(it))
+        from(configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) })
+
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
