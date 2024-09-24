@@ -7,13 +7,13 @@ import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
-import pascal.taie.intellij.gui.toolwindow.view.TaintToolWindowPanel;
+import pascal.taie.intellij.gui.toolwindow.view.TaieToolWindowPanel;
 
 public final class ToolWindowFactoryImpl implements ToolWindowFactory {
     @Override
     public void createToolWindowContent(@NotNull final Project project, @NotNull final ToolWindow toolWindow) {
         // for taint analysis:
-        final TaintToolWindowPanel taintToolWin = new TaintToolWindowPanel(project, toolWindow);
+        final TaieToolWindowPanel taintToolWin = new TaieToolWindowPanel(project, toolWindow);
         final ContentFactory contentFactory = ApplicationManager.getApplication().getService(ContentFactory.class);
         final Content content = contentFactory.createContent(taintToolWin.getRootPanel(), "", false);
         toolWindow.getContentManager().addContent(content);
