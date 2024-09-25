@@ -12,10 +12,9 @@ import pascal.taie.intellij.gui.toolwindow.view.TaieToolWindowPanel;
 public final class ToolWindowFactoryImpl implements ToolWindowFactory {
     @Override
     public void createToolWindowContent(@NotNull final Project project, @NotNull final ToolWindow toolWindow) {
-        // for taint analysis:
-        final TaieToolWindowPanel taintToolWin = new TaieToolWindowPanel(project, toolWindow);
+        final TaieToolWindowPanel toolWin = new TaieToolWindowPanel(project);
         final ContentFactory contentFactory = ApplicationManager.getApplication().getService(ContentFactory.class);
-        final Content content = contentFactory.createContent(taintToolWin.getRootPanel(), "", false);
+        final Content content = contentFactory.createContent(toolWin.getRootPanel(), "", false);
         toolWindow.getContentManager().addContent(content);
     }
 }
