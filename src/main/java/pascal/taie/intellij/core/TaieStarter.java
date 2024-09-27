@@ -39,7 +39,6 @@ public abstract class TaieStarter {
 
     private String cp;
     private String mainClass;
-    private String basePath;
 
     protected TaieStarter(
             @NotNull final Project project,
@@ -75,27 +74,28 @@ public abstract class TaieStarter {
 
     private void taskStart() {
         /* async start */
-        ProgressManager.getInstance().run(new Task.Backgroundable(
-                project,
-                "Running Tai-e analysis for project '" + project.getName() + "'..."
-        ) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, _title) {
             @Override
             public void run(@NotNull final ProgressIndicator indicator) {
-                asyncStart(indicator);
-                ApplicationManager.getApplication().invokeLater(() -> {
-                    checkIfCompiled();
-                });
-                startAnalyze(cp, mainClass, basePath); // asyncStart
-                ApplicationManager.getApplication().invokeLater(() -> {
-                    onFinish(); // run on UI thread
-                });
+                indicator.setIndeterminate(true); // which means how long the progress will last is unknown
+                prepareAnalyze(); // set the mainClass, cp
+                if (!checkIfCompiled()) return;
+
+                new Thread(() -> {
+                    try {
+                        startAnalyze(cp, mainClass); // asyncStart
+                        ApplicationManager.getApplication().invokeLater(TaieStarter.this::onFinish);
+                    } catch (Exception t) {
+                        ApplicationManager.getApplication().invokeLater(() ->
+                                Messages.showWarningDialog(
+                                        "Error during analysis: \n" + t.getMessage(), "Error"));
+                    }
+                }).start();
             }
         });
     }
 
-    private void asyncStart(@NotNull final ProgressIndicator indicator) {
-        indicator.setIndeterminate(true); // which means how long the progress will last is unknown
-
+    private void prepareAnalyze() {
         // todo: what does the codes below do?
         final Module[] modules = ModuleManager.getInstance(project).getModules();
         final List<Pair.NonNull<Module, VirtualFile>> compilerOutputPaths = new ArrayList<>();
@@ -117,20 +117,13 @@ public abstract class TaieStarter {
                 final VirtualFile compilerOutputPath = pair.second;
                 logger.info("Module: " + module.getName() + ", compiler output path: " + compilerOutputPath.getName());
 
-                String mainClass = locateMainClass(project, module);
-                /**
-                 * todo: analyze
-                 */
+                mainClass = locateMainClass(project, module);
                 cp = compilerOutputPath.getPath();
-                this.mainClass = mainClass;
-
-                basePath = project.getBasePath();
             }
         }
-
     }
 
-    protected abstract void startAnalyze(String cp, String mainClass, String basePath);
+    protected abstract void startAnalyze(String cp, String mainClass);
 
     protected abstract void onFinish();
 
@@ -163,12 +156,14 @@ public abstract class TaieStarter {
         });
     }
 
-    private void checkIfCompiled() {
+    private boolean checkIfCompiled() {
         /* must be compiled first */
         if (cp == null) {
             logger.error("No compiler output path found");
             Messages.showMessageDialog(project, "Please compile your project first!", "No Compiler Output Found", Messages.getErrorIcon());
+            return false;
         }
+        return true;
     }
 
 }
