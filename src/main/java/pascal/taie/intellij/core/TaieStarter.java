@@ -79,18 +79,19 @@ public abstract class TaieStarter {
             public void run(@NotNull final ProgressIndicator indicator) {
                 indicator.setIndeterminate(true); // which means how long the progress will last is unknown
                 prepareAnalyze(); // set the mainClass, cp
-                if (!checkIfCompiled()) return;
-
-                new Thread(() -> {
-                    try {
-                        startAnalyze(cp, mainClass); // asyncStart
-                        ApplicationManager.getApplication().invokeLater(TaieStarter.this::onFinish);
-                    } catch (Exception t) {
-                        ApplicationManager.getApplication().invokeLater(() ->
-                                Messages.showWarningDialog(
-                                        "Error during analysis: \n" + t.getMessage(), "Error"));
-                    }
-                }).start();
+                if (!checkIfCompiled()) {
+                    return;
+                }
+                try {
+                    indicator.setIndeterminate(true);
+                    startAnalyze(cp, mainClass);
+                    ApplicationManager.getApplication().invokeLater(TaieStarter.this::onFinish);
+                } catch (Exception t) {
+                    ApplicationManager.getApplication().invokeLater(() ->
+                            Messages.showWarningDialog(
+                                    "Error during analysis: \n" + t.getMessage(), "Error"
+                            ));
+                }
             }
         });
     }
@@ -158,6 +159,7 @@ public abstract class TaieStarter {
 
     private boolean checkIfCompiled() {
         /* must be compiled first */
+        assert mainClass != null;
         if (cp == null) {
             logger.error("No compiler output path found");
             Messages.showMessageDialog(project, "Please compile your project first!", "No Compiler Output Found", Messages.getErrorIcon());
