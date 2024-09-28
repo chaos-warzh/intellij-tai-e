@@ -1,4 +1,4 @@
-package pascal.taie.intellij.core;
+package pascal.taie.intellij.analysis;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.compiler.CompileScope;
@@ -6,8 +6,8 @@ import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
+import com.intellij.openapi.progress.PerformInBackgroundOption;
 import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
@@ -26,10 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.intellij.psi.util.PsiMethodUtil.isMainMethod;
+import static pascal.taie.intellij.gui.UiUtils.runOnUiThread;
 
-public abstract class TaieStarter {
+public abstract class AnalyzeStarter implements Cancelable {
 
-    public static final Logger logger = Logger.getInstance(TaieStarter.class);
+    public static final Logger logger = Logger.getInstance(AnalyzeStarter.class);
 
     @NotNull
     private final Project project;
@@ -37,10 +38,17 @@ public abstract class TaieStarter {
     @NotNull
     private final String _title;
 
+    private boolean finished = false;
+
+    private boolean canceled = false;
+
+    private ProgressIndicator indicator;
+
     private String cp;
+
     private String mainClass;
 
-    protected TaieStarter(
+    protected AnalyzeStarter(
             @NotNull final Project project,
             @NotNull final String title
     ) {
@@ -49,51 +57,67 @@ public abstract class TaieStarter {
     }
 
     public void start() {
-        logger.info("Start Intellij Tai-e analysis");
+        final AnalysisStatus status = AnalysisStatus.get(project);
+        if (project.isDisposed() || !status.tryRun()) {
+            logger.error("Project is disposed or another one is already running");
+        } else { // ready to start analysis
+            buildThenStart();
+        }
+    }
 
+    public void buildThenStart() {
+        logger.info("Start Intellij Tai-e analysis");
         final CompilerManager compilerManager = CompilerManager.getInstance(project);
 
-        boolean compileBeforeAnalyze = false;
+        boolean compileBeforeAnalyze;
         compileBeforeAnalyze = true; // not compiled
+
         if (compileBeforeAnalyze) {
-            CompileScope compileScope = compilerManager.createProjectCompileScope(project);
-            if (compileScope == null) {
-                logger.error("Failed to create compile scope");
-                return;
-            }
             // compile:
+            CompileScope compileScope = compilerManager.createProjectCompileScope(project);
             compilerManager.make(compileScope, (aborted, errors, warnings, compileContext) -> {
-                if (!aborted && errors == 0) {
-                    DumbService.getInstance(project).runWhenSmart(this::taskStart);
+                final AnalysisStatus status = AnalysisStatus.get(project);
+                if (aborted || errors != 0) {
+                    finished = true;
+                    status.stopRun();
+                } else { // no compile error
+                    Task task = new Task.Backgroundable(
+                            project, _title, true, PerformInBackgroundOption.ALWAYS_BACKGROUND
+                    ) {
+                        @Override
+                        public void run(@NotNull ProgressIndicator indicator) {
+                            AnalyzeStarter.this.indicator = indicator;
+                            try {
+                                finished = false;
+                                indicator.setIndeterminate(true); // progress last time unknown
+                                taskStart();
+                            } finally {
+                                if (!project.isDisposed()) {
+                                    finished = true;
+                                    status.stopRun();
+                                }
+                            }
+                        }
+                    };
+
+                    DumbService.getInstance(project).runWhenSmart(task::queue);
                 }
             });
-        } else {
-            taskStart();
         }
     }
 
     private void taskStart() {
-        /* async start */
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, _title) {
-            @Override
-            public void run(@NotNull final ProgressIndicator indicator) {
-                indicator.setIndeterminate(true); // which means how long the progress will last is unknown
-                prepareAnalyze(); // set the mainClass, cp
-                if (!checkIfCompiled()) {
-                    return;
-                }
-                try {
-                    indicator.setIndeterminate(true);
-                    startAnalyze(cp, mainClass);
-                    ApplicationManager.getApplication().invokeLater(TaieStarter.this::onFinish);
-                } catch (Exception t) {
-                    ApplicationManager.getApplication().invokeLater(() ->
-                            Messages.showWarningDialog(
-                                    "Error during analysis: \n" + t.getMessage(), "Error"
-                            ));
-                }
-            }
-        });
+        prepareAnalyze(); // set the mainClass, cp
+        if (!checkIfCompiled()) return;
+
+        try {
+            startAnalyze(cp, mainClass);
+            runOnUiThread(project, this::onFinish);
+        } catch (Exception t) {
+            runOnUiThread(project, () -> Messages
+                    .showWarningDialog("Error during analysis: \n" + t.getMessage(), "Error")
+            );
+        }
     }
 
     private void prepareAnalyze() {
@@ -126,7 +150,23 @@ public abstract class TaieStarter {
 
     protected abstract void startAnalyze(String cp, String mainClass);
 
+    /**
+     * allowing UI updates
+     */
     protected abstract void onFinish();
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    @Override
+    public void cancel() {
+        if (!isFinished()) {
+            canceled = true;
+
+            logger.info("Analysis canceled");
+        }
+    }
 
     private String locateMainClass(Project project, Module module) {
         return ApplicationManager.getApplication().runReadAction((Computable<String>) () -> {
@@ -159,10 +199,7 @@ public abstract class TaieStarter {
 
     private boolean checkIfCompiled() {
         /* must be compiled first */
-        assert mainClass != null;
-        if (cp == null) {
-            logger.error("No compiler output path found");
-            Messages.showMessageDialog(project, "Please compile your project first!", "No Compiler Output Found", Messages.getErrorIcon());
+        if (cp == null || mainClass == null) {
             return false;
         }
         return true;

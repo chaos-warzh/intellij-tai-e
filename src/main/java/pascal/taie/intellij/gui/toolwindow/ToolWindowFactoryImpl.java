@@ -1,4 +1,4 @@
-package pascal.taie.intellij.core;
+package pascal.taie.intellij.gui.toolwindow;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
