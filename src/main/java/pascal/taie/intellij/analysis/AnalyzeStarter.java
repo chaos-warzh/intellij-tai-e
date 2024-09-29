@@ -122,14 +122,14 @@ public class AnalyzeStarter implements Cancelable {
     }
 
     private void taskStart(@NotNull final BiConsumer<String, String> startAnalyze, @NotNull final Runnable onFinish) {
-        if (canceled) return;
+        if (canceled) return; //FIXME
         prepareAnalyze(); // set the mainClass, cp
         if (!checkIfCompiled()) return;
 
         try {
-            if (canceled) return;
+            if (canceled) return; //FIXME
             startAnalyze.accept(cp, mainClass);
-            if (canceled) return;
+            if (canceled) return; //FIXME
             runOnUiThread(project, onFinish);
         } catch (Exception t) {
             runOnUiThread(project, () -> Messages
