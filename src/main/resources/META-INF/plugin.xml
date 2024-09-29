@@ -18,11 +18,87 @@
                           relative-to-action="EditorPasteSimple"
                           group-id="Copy.Paste.Special"/>
         </action>
+        <!-- Define Tai-e ActionGroup -->
+        <group  id="pascal.taie.intellij.AnalysisMenu"
+                text="Tai-e"
+                popup="true">
+            <add-to-group group-id="AnalyzeMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" relative-to-action="AnalyzeMenu" anchor="after" />
+            <add-to-group group-id="ProjectViewPopupMenu" relative-to-action="AnalyzeMenu" anchor="after" />
+        </group>
+
+        <!-- Define Customized Analysis ActionGroup Left -->
+        <group  id="pascal.taie.intellij.customized.left"
+                text="Tai-e Customized Analyze Actions"
+                popup="true">
+
+            <!-- Run Customized Analysis Action -->
+            <action id="pascal.taie.RunCustomizedAnalysisAction"
+                    class="pascal.taie.intellij.actions.RunCustomizedAnalysisAction"
+                    text="Run Customized Analysis"
+                    description="Run Customized Analysis for the project"
+                    icon="AllIcons.Actions.Execute">
+                <add-to-group group-id="pascal.taie.intellij.AnalysisMenu" anchor="last"/>
+                <keyboard-shortcut keymap="$default" first-keystroke="shift alt 1"/>
+            </action>
+            <!-- Stop Analysis -->
+            <action id="pascal.taie.StopCustomizedAction"
+                    class="pascal.taie.intellij.actions.StopCustomizedAction"
+                    text="Stop Customized Analysis"
+                    description="Stop the currently running customized  analysis"
+                    icon="AllIcons.Actions.Suspend">
+                <add-to-group group-id="pascal.taie.intellij.AnalysisMenu" anchor="last"/>
+            </action>
+            <!-- Config -->
+            <action id="pascal.taie.ConfigCustomizedAnalysisAction"
+                    class="pascal.taie.intellij.actions.ConfigCustomizedAnalysisAction"
+                    text="Config Customized Analysis"
+                    description="Config Customized Analysis for the project"
+                    icon="AllIcons.Actions.InlayGear">
+                <add-to-group group-id="pascal.taie.intellij.AnalysisMenu" anchor="last"/>
+            </action>
+
+        </group>
+        <!-- Define Taint Analysis ActionGroup Left -->
+        <group  id="pascal.taie.intellij.taint.left"
+                text="Tai-e Taint Analyze Actions"
+                popup="true">
+            <!-- Run Taint Analysis Action -->
+            <action id="pascal.taie.intellij.AnalysisMenu.RunTaintAnalysisAction"
+                    class="pascal.taie.intellij.actions.RunTaintAnalysisAction"
+                    text="Run Taint Analysis"
+                    description="Run Taint Analysis for the project"
+                    icon="AllIcons.Actions.Execute">
+                <add-to-group group-id="pascal.taie.intellij.AnalysisMenu" anchor="last"/>
+                <keyboard-shortcut keymap="$default" first-keystroke="shift alt 2"/>
+            </action>
+            <!-- Stop Analysis -->
+            <action id="pascal.taie.StopTaintAnalysisAction"
+                    class="pascal.taie.intellij.actions.StopTaintAnalysisAction"
+                    text="Stop Taint Analysis"
+                    description="Stop the currently running taint analysis"
+                    icon="AllIcons.Actions.Suspend">
+                <add-to-group group-id="pascal.taie.intellij.AnalysisMenu" anchor="last"/>
+            </action>
+            <!-- Config -->
+            <action id="pascal.taie.ConfigTaintAnalysisAction"
+                    class="pascal.taie.intellij.actions.ConfigTaintAnalysisAction"
+                    text="Config Taint Analysis"
+                    description="Config Taint Analysis for the project"
+                    icon="AllIcons.Actions.InlayGear">
+                <add-to-group group-id="pascal.taie.intellij.AnalysisMenu" anchor="last"/>
+            </action>
+        </group>
+
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow anchor="bottom" id="Tai-e" icon="/META-INF/toolBarIcon.svg"
-                    factoryClass="pascal.taie.intellij.core.ToolWindowFactoryImpl"/>
+                    factoryClass="pascal.taie.intellij.gui.toolwindow.ToolWindowFactoryImpl"/>
+        <projectConfigurable id="pascal.taie.intellij.gui.modal.view.TaieCustomizedConfigurable"
+                             instance="pascal.taie.intellij.gui.modal.view.TaieCustomizedConfigurable"
+                             displayName="Customized Analysis Settings"
+                             nonDefaultProject="true"/>
         <fileType name="Tai-e IR File"
                   implementationClass="pascal.taie.intellij.tir.TirFileType"
                   fieldName="INSTANCE"

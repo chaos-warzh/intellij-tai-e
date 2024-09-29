@@ -21,22 +21,25 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.PsiShortNamesCache;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import static com.intellij.psi.util.PsiMethodUtil.isMainMethod;
 import static pascal.taie.intellij.gui.UiUtils.runOnUiThread;
 
-public abstract class AnalyzeStarter implements Cancelable {
+public class AnalyzeStarter implements Cancelable {
 
     public static final Logger logger = Logger.getInstance(AnalyzeStarter.class);
 
     @NotNull
-    private final Project project;
+    private static AnalyzeStarter analyzeStarter = new AnalyzeStarter();
 
-    @NotNull
-    private final String _title;
+    private Project project;
+
+    private String title;
 
     private boolean finished = false;
 
@@ -48,24 +51,34 @@ public abstract class AnalyzeStarter implements Cancelable {
 
     private String mainClass;
 
-    protected AnalyzeStarter(
-            @NotNull final Project project,
-            @NotNull final String title
-    ) {
-        this.project = project;
-        this._title = title;
+
+    private AnalyzeStarter() {}
+
+    @NotNull
+    public static AnalyzeStarter get() {
+        return analyzeStarter;
     }
 
-    public void start() {
+    public void start(@NotNull final Project project,
+            @NotNull final String title,
+            @NotNull final BiConsumer<String, String> startAnalyze,
+            /* Run on UI Thread */
+            @NotNull final Runnable onFinish
+    ) {
+        this.project = project;
+        this.title = title;
         final AnalysisStatus status = AnalysisStatus.get(project);
         if (project.isDisposed() || !status.tryRun()) {
             logger.error("Project is disposed or another one is already running");
         } else { // ready to start analysis
-            buildThenStart();
+            buildThenStart(startAnalyze, onFinish);
         }
     }
 
-    public void buildThenStart() {
+    private void buildThenStart(
+            @NotNull final BiConsumer<String, String> startAnalyze,
+            @NotNull final Runnable onFinish
+    ) {
         logger.info("Start Intellij Tai-e analysis");
         final CompilerManager compilerManager = CompilerManager.getInstance(project);
 
@@ -82,7 +95,7 @@ public abstract class AnalyzeStarter implements Cancelable {
                     status.stopRun();
                 } else { // no compile error
                     Task task = new Task.Backgroundable(
-                            project, _title, true, PerformInBackgroundOption.ALWAYS_BACKGROUND
+                            project, title, true, PerformInBackgroundOption.ALWAYS_BACKGROUND
                     ) {
                         @Override
                         public void run(@NotNull ProgressIndicator indicator) {
@@ -90,11 +103,13 @@ public abstract class AnalyzeStarter implements Cancelable {
                             try {
                                 finished = false;
                                 indicator.setIndeterminate(true); // progress last time unknown
-                                taskStart();
+                                taskStart(startAnalyze, onFinish);
                             } finally {
                                 if (!project.isDisposed()) {
                                     finished = true;
+                                    canceled = false;
                                     status.stopRun();
+                                    AnalyzeStarter.this.indicator = null;
                                 }
                             }
                         }
@@ -106,13 +121,16 @@ public abstract class AnalyzeStarter implements Cancelable {
         }
     }
 
-    private void taskStart() {
+    private void taskStart(@NotNull final BiConsumer<String, String> startAnalyze, @NotNull final Runnable onFinish) {
+        if (canceled) return;
         prepareAnalyze(); // set the mainClass, cp
         if (!checkIfCompiled()) return;
 
         try {
-            startAnalyze(cp, mainClass);
-            runOnUiThread(project, this::onFinish);
+            if (canceled) return;
+            startAnalyze.accept(cp, mainClass);
+            if (canceled) return;
+            runOnUiThread(project, onFinish);
         } catch (Exception t) {
             runOnUiThread(project, () -> Messages
                     .showWarningDialog("Error during analysis: \n" + t.getMessage(), "Error")
@@ -142,35 +160,38 @@ public abstract class AnalyzeStarter implements Cancelable {
                 final VirtualFile compilerOutputPath = pair.second;
                 logger.info("Module: " + module.getName() + ", compiler output path: " + compilerOutputPath.getName());
 
-                mainClass = locateMainClass(project, module);
                 cp = compilerOutputPath.getPath();
+                mainClass = locateMainClass(project, module);
+                if (mainClass == null || mainClass.isEmpty()) {
+                    runOnUiThread(project, () -> Messages.showWarningDialog(
+                            "Please make sure a main class is contained in your project!",
+                            "Main Class Not Found"
+                            )
+                    );
+                }
             }
         }
     }
 
-    protected abstract void startAnalyze(String cp, String mainClass);
-
-    /**
-     * allowing UI updates
-     */
-    protected abstract void onFinish();
-
-    public boolean isFinished() {
+    private boolean isFinished() {
         return finished;
     }
 
     @Override
     public void cancel() {
         if (!isFinished()) {
-            canceled = true;
-
             logger.info("Analysis canceled");
+            canceled = true;
+            if (indicator != null) {
+                indicator.cancel();
+            }
         }
     }
 
-    private String locateMainClass(Project project, Module module) {
+    @Nullable
+    private static String locateMainClass(final Project project, final Module module) {
         return ApplicationManager.getApplication().runReadAction((Computable<String>) () -> {
-            String mainClassPath = "";
+            String mainClassPath = null;
 
             GlobalSearchScope searchScope = GlobalSearchScope.moduleScope(module);
             String[] classNames = PsiShortNamesCache.getInstance(project).getAllClassNames();
@@ -187,22 +208,13 @@ public abstract class AnalyzeStarter implements Cancelable {
                     }
                 }
             }
-
-            if (mainClassPath == null || mainClassPath.isEmpty()) {
-                logger.error("Main class not found");
-                throw new RuntimeException("Main class not found");
-            }
-
             return mainClassPath;
         });
     }
 
     private boolean checkIfCompiled() {
         /* must be compiled first */
-        if (cp == null || mainClass == null) {
-            return false;
-        }
-        return true;
+        return cp != null && mainClass != null && !mainClass.isEmpty();
     }
 
 }
