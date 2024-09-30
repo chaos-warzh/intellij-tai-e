@@ -14,7 +14,7 @@ import pascal.taie.intellij.gui.toolwindow.view.TaieToolWindowPanel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RunCustomizedAnalysisAction extends DefaultRun {
+public final class RunCustomizedAnalysisAction extends DefaultRun {
 
     @Override
     void actionPerformedImpl(@NotNull AnActionEvent e, @NotNull Project project) {

@@ -4,11 +4,8 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
-import com.intellij.openapi.actionSystem.PlatformCoreDataKeys;
-import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import pascal.taie.intellij.analysis.AnalysisStatus;
 
 public abstract class AbstractAction extends AnAction {
@@ -62,9 +59,4 @@ public abstract class AbstractAction extends AnAction {
             @NotNull final Project project
     );
 
-
-    @Nullable
-    private static Module getModule(@NotNull final AnActionEvent e) {
-        return PlatformCoreDataKeys.MODULE.getData(e.getDataContext()); // get the module
-    }
 }

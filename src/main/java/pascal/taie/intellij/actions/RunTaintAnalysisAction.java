@@ -5,7 +5,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import org.jetbrains.annotations.NotNull;
 
-public class RunTaintAnalysisAction extends DefaultRun {
+public final class RunTaintAnalysisAction extends DefaultRun {
 
     @Override
     void actionPerformedImpl(@NotNull AnActionEvent e, @NotNull Project project) {

@@ -60,7 +60,7 @@ public class TaieCustomizedConfigurable implements Configurable {
 
     @Override
     public boolean isModified() {
-        return rootPanel != null && true;
+        return rootPanel != null && true; // todo: modified?
     }
 
     @Override

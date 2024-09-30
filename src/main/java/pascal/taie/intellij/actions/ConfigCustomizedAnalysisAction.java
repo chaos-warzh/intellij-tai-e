@@ -7,7 +7,7 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import pascal.taie.intellij.gui.modal.view.TaieCustomizedConfigurable;
 
-public class ConfigCustomizedAnalysisAction extends DefaultConfig {
+public final class ConfigCustomizedAnalysisAction extends DefaultConfig {
 
     @Override
     void actionPerformedImpl(@NotNull AnActionEvent e, @NotNull Project project) {

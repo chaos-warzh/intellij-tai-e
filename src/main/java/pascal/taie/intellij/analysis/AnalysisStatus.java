@@ -5,23 +5,25 @@ import com.intellij.openapi.project.Project;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import org.jetbrains.annotations.NotNull;
 import pascal.taie.intellij.messages.StatusListener;
 
 @ThreadSafe
 @Service(Service.Level.PROJECT)
 public final class AnalysisStatus {
 
+    @NotNull
     private final StatusListener statusListener;
 
     private Status status = Status.STOPPED;
 
-    public AnalysisStatus(Project project) {
+    public AnalysisStatus(@NotNull Project project) {
         this.statusListener = project.getMessageBus().syncPublisher(StatusListener.TAI_E_STATUS_TOPIC);
     }
 
     public enum Status {RUNNING, STOPPED, CANCELLING}
 
-    public static AnalysisStatus get(Project p) {
+    public static @NotNull AnalysisStatus get(@NotNull Project p) {
         AnalysisStatus status = p.getService(AnalysisStatus.class);
         if (status == null) {
             throw new IllegalStateException("AnalysisStatus not found for project " + p);

@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import pascal.taie.intellij.analysis.AnalysisStatus;
 import pascal.taie.intellij.analysis.AnalyzeStarter;
 
-public class StopCustomizedAction extends DefaultStop implements DumbAware {
+public final class StopCustomizedAction extends DefaultStop implements DumbAware {
 
     @Override
     void actionPerformedImpl(@NotNull AnActionEvent e, @NotNull Project project) {

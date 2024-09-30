@@ -30,12 +30,11 @@ import java.util.function.BiConsumer;
 import static com.intellij.psi.util.PsiMethodUtil.isMainMethod;
 import static pascal.taie.intellij.gui.UiUtils.runOnUiThread;
 
-public class AnalyzeStarter implements Cancelable {
+public final class AnalyzeStarter implements Cancelable {
 
     public static final Logger logger = Logger.getInstance(AnalyzeStarter.class);
 
-    @NotNull
-    private static AnalyzeStarter analyzeStarter = new AnalyzeStarter();
+    private static final @NotNull AnalyzeStarter analyzeStarter = new AnalyzeStarter();
 
     private Project project;
 
@@ -51,7 +50,6 @@ public class AnalyzeStarter implements Cancelable {
 
     private String mainClass;
 
-
     private AnalyzeStarter() {}
 
     @NotNull
@@ -59,10 +57,11 @@ public class AnalyzeStarter implements Cancelable {
         return analyzeStarter;
     }
 
-    public void start(@NotNull final Project project,
+    public void start(
+            @NotNull final Project project,
             @NotNull final String title,
             @NotNull final BiConsumer<String, String> startAnalyze,
-            /* Run on UI Thread */
+            /* Run on UI Thread: */
             @NotNull final Runnable onFinish
     ) {
         this.project = project;
@@ -189,7 +188,7 @@ public class AnalyzeStarter implements Cancelable {
     }
 
     @Nullable
-    private static String locateMainClass(final Project project, final Module module) {
+    private static String locateMainClass(@NotNull final Project project, @NotNull final Module module) {
         return ApplicationManager.getApplication().runReadAction((Computable<String>) () -> {
             String mainClassPath = null;
 
