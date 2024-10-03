@@ -131,8 +131,11 @@ public final class AnalyzeStarter implements Cancelable {
             if (canceled) return; //FIXME
             runOnUiThread(project, onFinish);
         } catch (Exception t) {
-            runOnUiThread(project, () -> Messages
-                    .showWarningDialog("Error during analysis: \n" + t.getMessage(), "Error")
+            runOnUiThread(project, () -> Messages      
+                    .showWarningDialog("Error during Tai-e analysis: \n" + t.getMessage()
+                            + "\n\nYour class path: " + cp + "\nYour main class: " + mainClass,
+                            "Tai-e Inner Error")
+                          
             );
         }
     }
