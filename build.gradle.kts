@@ -40,6 +40,9 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
     implementation("org.slf4j:slf4j-nop:2.0.7")
 
+    // Process YAML configuration files
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.0")
+
 }
 
 // Set the JVM language level used to build the project.
