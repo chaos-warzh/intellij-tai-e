@@ -6,3 +6,7 @@ bin
 build
 out
 /**/src/main/gen/
+webview
+node_modules
+dist
+
