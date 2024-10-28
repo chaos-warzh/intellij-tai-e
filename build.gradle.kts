@@ -43,6 +43,7 @@ dependencies {
     // Process YAML configuration files
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.0")
 
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.3")
 }
 
 // Set the JVM language level used to build the project.
