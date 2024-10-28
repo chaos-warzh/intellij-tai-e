@@ -32,6 +32,21 @@ export class Graph{
     }
 
 
+    isSourcePoint(index: number) {
+        return this.metadata.isSourcePoint(index);
+    }
+
+    isSinkPoint(index: number) {
+        return this.metadata.isSinkPoint(index);
+    }
+
+    isSource(index: number) {
+        return this.metadata.isSource(index);
+    }
+
+    isSink(index: number) {
+        return this.metadata.isSink(index);
+    }
 }
 
 class Metadata{
@@ -39,12 +54,20 @@ class Metadata{
     classes: string[];
     methods: string[];
     nodes: string[];
+    sourcePoints: number[];
+    sinkPoints: number[];
+    sources: number[];
+    sinks: number[];
 
     constructor(metadata: any){
         this.packages = metadata.packages;
         this.classes = metadata.classes;
         this.methods = metadata.methods;
         this.nodes = metadata.nodes;
+        this.sourcePoints = metadata.sourcePoints;
+        this.sinkPoints = metadata.sinkPoints;
+        this.sources = metadata.source;
+        this.sinks = metadata.sink;
 
         const len: number = this.classes.length;
         for(let i = 0; i < len; i++){
@@ -69,6 +92,22 @@ class Metadata{
 
     getn(index: number) {
         return this.nodes[index];
+    }
+
+    isSourcePoint(index: number) {
+        return this.sourcePoints.includes(index);
+    }
+
+    isSinkPoint(index: number) {
+        return this.sinkPoints.includes(index);
+    }
+
+    isSource(index: number) {
+        return this.sources.includes(index);
+    }
+
+    isSink(index: number) {
+        return this.sinks.includes(index);
     }
 }
 

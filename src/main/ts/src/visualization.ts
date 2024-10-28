@@ -2,22 +2,6 @@ import go, { Group, Model } from 'gojs';
 import { Graph } from './graph' ;
 import { Alias } from 'yaml';
 
-// const $ = go.GraphObject.make;
-// const myDiagram = $(go.Diagram, "myDiagramDiv",
-// {
-//     // layout: $(go.GridLayout,
-//     //     {
-//     //         wrappingColumn: 6,
-//     //         arrangement: go.GridLayout.Ascending,
-//     //         spacing: new go.Size(50,50),
-//     //         isRealtime: false,
-//     //     })
-//     layout: $(go.TreeLayout,
-//         {angle: 90}
-//     ),
-//     "undoManager.isEnabled": true
-// });
-
 const $ = go.GraphObject.make;
 
 const myDiagram =
@@ -152,11 +136,11 @@ export function visualize(graph: Graph){
     if(!buttonCreated){
         LayersChangeButton("Remove Package", "Restore Package", graph, restorePackages, removePackages);
         LayersChangeButton("Remove Classes", "Restore Class", graph, restoreClasses, removeClasses);
-        LayersChangeButton("Remove Methods", "Restore Method", graph, restoreMethods, removeMethods);
+        LayersChangeButton("Remove Methods", "Restore Methods", graph, restoreMethods, removeMethods);
 
         //HighlightPathButton("Highlight Recommanded Paths", graph, highlightRecommandedPath);
-
-        ResetButton(graph, hideAll);
+        //ResetButton(graph, hideAll);
+        
         buttonCreated = true;
     }
     
@@ -182,6 +166,7 @@ var buttonCreated = false;
 let packageExist = true;
 let classExist = true;
 let methodExist = true;
+
 function LayersChangeButton(restoreState : string, removeState : string, graph : Graph, restoreFunc : (graph : Graph) => void, removeFunc : (graph : Graph) => void){
     var button = document.createElement("button");
     button.innerHTML = restoreState;
@@ -476,6 +461,7 @@ function highlightPath(event: go.InputEvent, ador: go.GraphObject){
     mark(node, 4);
     diagram.commitTransaction("highlight");
 }
+
 function mark(node: go.Node, depth: number){
     if(depth === 0) return;
 
@@ -515,8 +501,11 @@ function makeNodes(graph: Graph){
     graph.relation.methodToNodes.forEach((vv, km)=>{
         const mName:string = graph.metadata.getm(km);
         vv.forEach(n=>{
-            //const color:string = graph.isSource(n)? 'gold' : (graph.isSink(n)? 'aquamarine' : 'lightblue');
-            const color:string = 'lightblue';
+            var color:string = 'lightblue';
+            if (graph.isSource(n)) color = 'gold';
+            if (graph.isSink(n)) color = 'aquamarine';
+            if (graph.isSourcePoint(n)) color = 'lightcoral';
+            if (graph.isSinkPoint(n)) color = 'lightgreen';
             nodeDataArray.push({key: graph.metadata.getn(n), color: color, group: mName, isHighlighted: false, isCollapsed: true});
         });
     })

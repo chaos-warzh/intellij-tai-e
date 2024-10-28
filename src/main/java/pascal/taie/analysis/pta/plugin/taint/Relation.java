@@ -9,9 +9,8 @@ import pascal.taie.util.collection.MultiMap;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-public class Relation {
+class Relation {
 
     public final Map<Long, List<Long>> packageToClasses = Maps.newHybridMap();
 
@@ -21,18 +20,17 @@ public class Relation {
 
     public final Map<Long, List<Long>> methodToNodes = Maps.newHybridMap();
 
-
-    public Relation(Set<Node> nodes, Set<SourcePoint> sourcePoints, Set<SinkPoint> sinkPoints, MetaData md){
+    public Relation(TFGElem tfgElem, MetaData md) {
         MultiMap<Long, Long> p2c = Maps.newMultiMap();
         MultiMap<Long, Long> c2m = Maps.newMultiMap();
         MultiMap<Long, Long> c2f = Maps.newMultiMap();
         MultiMap<Long, Long> m2n = Maps.newMultiMap();
 
-        for(Node n : nodes){
+        for(Node n : tfgElem.nodes){
             Long packageIndex;
             Long classIndex;
             Long methodIndex = -1L;
-            Long varOrFieldIndex = md.indexOfNode(n.toString());
+            Long nodeIndex = md.indexOfNode(n.toString());
 
             if(n instanceof VarNode vn){
                 methodIndex = md.indexOfMethod(vn.getVar().getMethod().toString());
@@ -62,35 +60,82 @@ public class Relation {
             }
 
             if(methodIndex != -1){
-                m2n.put(methodIndex, varOrFieldIndex);
+                m2n.put(methodIndex, nodeIndex);
                 c2m.put(classIndex, methodIndex);
             }
             else{
-                c2f.put(classIndex, varOrFieldIndex);
+                c2f.put(classIndex, nodeIndex);
             }
             p2c.put(packageIndex, classIndex);
         }
 
-        for (SourcePoint scp : sourcePoints) {
-            JMethod method = scp.getContainer();
-            JClass cls = method.getDeclaringClass();
-            Long scpIndx = md.indexOfNode(scp.toString());
-            Long methodIndex = md.indexOfMethod(method.toString());
+        for (SourcePoint scp : tfgElem.sourcePoints) {
+            JMethod m = scp.getContainer();
+            JClass cls = m.getDeclaringClass();
+            Long scpIndex = md.indexOfNode(scp.toString());
+            Long methodIndex = md.indexOfMethod(m.toString());
             Long classIndex = md.indexOfClass(cls.toString());
             Long packageIndex = md.packageFromClass(cls.toString());
-            m2n.put(methodIndex, scpIndx);
+            m2n.put(methodIndex, scpIndex);
             c2m.put(classIndex, methodIndex);
             p2c.put(packageIndex, classIndex);
         }
 
-        for (SinkPoint skp : sinkPoints) {
-            JMethod method = skp.sinkCall().getContainer();
-            JClass cls = method.getDeclaringClass();
-            Long skpIndx = md.indexOfNode(skp.toString());
-            Long methodIndex = md.indexOfMethod(method.toString());
+        for (SinkPoint skp : tfgElem.sinkPoints) {
+            JMethod m = skp.sinkCall().getContainer();
+            JClass cls = m.getDeclaringClass();
+            Long skpIndex = md.indexOfNode(skp.toString());
+            Long methodIndex = md.indexOfMethod(m.toString());
             Long classIndex = md.indexOfClass(cls.toString());
             Long packageIndex = md.packageFromClass(cls.toString());
-            m2n.put(methodIndex, skpIndx);
+            m2n.put(methodIndex, skpIndex);
+            c2m.put(classIndex, methodIndex);
+            p2c.put(packageIndex, classIndex);
+        }
+
+        for (Source sc : tfgElem.sources) {
+            Long packageIndex;
+            Long classIndex;
+            Long methodIndex = -1L;
+            Long nodeIndex = md.indexOfNode(sc.toString());
+
+            if (sc instanceof CallSource callSource){
+                JMethod m = callSource.method();
+                JClass cls = m.getDeclaringClass();
+                methodIndex = md.indexOfMethod(m.toString());
+                classIndex = md.indexOfClass(cls.toString());
+                packageIndex = md.packageFromClass(cls.toString());
+            } else if (sc instanceof FieldSource fieldSource){
+                JClass cls = fieldSource.field().getDeclaringClass();
+                classIndex = md.indexOfClass(cls.toString());
+                packageIndex = md.packageFromClass(cls.toString());
+            } else if (sc instanceof ParamSource paramSource){
+                JMethod m = paramSource.method();
+                JClass cls = m.getDeclaringClass();
+                methodIndex = md.indexOfMethod(m.toString());
+                classIndex = md.indexOfClass(cls.toString());
+                packageIndex = md.packageFromClass(cls.toString());
+            } else {
+                throw new RuntimeException("Can't process new Source");
+            }
+
+            if(methodIndex != -1){
+                m2n.put(methodIndex, nodeIndex);
+                c2m.put(classIndex, methodIndex);
+            }
+            else{
+                c2f.put(classIndex, nodeIndex);
+            }
+            p2c.put(packageIndex, classIndex);
+        }
+
+        for (Sink sk : tfgElem.sinks) {
+            JMethod m = sk.method();
+            JClass cls = m.getDeclaringClass();
+            Long methodIndex = md.indexOfMethod(m.toString());
+            Long classIndex = md.indexOfClass(cls.toString());
+            Long packageIndex = md.packageFromClass(cls.toString());
+            m2n.put(methodIndex, md.indexOfNode(sk.toString()));
             c2m.put(classIndex, methodIndex);
             p2c.put(packageIndex, classIndex);
         }
