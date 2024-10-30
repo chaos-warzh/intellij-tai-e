@@ -15,7 +15,7 @@ import java.util.Objects;
  * The representation of node is String,
  * and what it maps to is its index in List.
  */
-class MetaData {
+public class MetaData {
     public final List<String> packages;
 
     public final List<String> classes;

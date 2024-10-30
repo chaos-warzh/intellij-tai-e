@@ -11,6 +11,7 @@ import pascal.taie.intellij.gui.modal.view.TaieCustomizedConfigurable;
 import pascal.taie.intellij.analysis.AnalyzeStarter;
 import pascal.taie.intellij.gui.toolwindow.view.TaieToolWindowPanel;
 import pascal.taie.intellij.gui.webwindow.WebWindowService;
+import pascal.taie.intellij.util.OFGYamlDumper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +50,13 @@ public final class RunCustomizedAnalysisAction extends DefaultRun {
                             String tfgYaml = pointerAnalysisResult.getResult("pascal.taie.analysis.pta.plugin.taint.TFGYamlDumper");
                             if(tfgYaml != null) {
                                 project.getService(WebWindowService.class).reload("index.html", tfgYaml);
+                            } else {
+                                // dump OFG
+                                String ofgYaml = new OFGYamlDumper(pointerAnalysisResult.getObjectFlowGraph()).dump();
+                                if (ofgYaml != null) {
+                                    System.out.println(ofgYaml);
+                                    project.getService(WebWindowService.class).reload("index.html", ofgYaml);
+                                }
                             }
 
                         }
