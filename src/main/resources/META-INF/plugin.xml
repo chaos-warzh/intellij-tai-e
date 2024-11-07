@@ -93,7 +93,8 @@
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="WebWindow" anchor="right" factoryClass="pascal.taie.intellij.gui.webwindow.WebWindowFactoryImpl"/>
+        <toolWindow id="Tai-e Result" anchor="right" icon="/META-INF/toolBarIcon.svg"
+                    factoryClass="pascal.taie.intellij.gui.webwindow.WebWindowFactoryImpl"/>
         <projectService id="WebWindowService" serviceImplementation="pascal.taie.intellij.gui.webwindow.WebWindowService"/>
         <toolWindow anchor="bottom" id="Tai-e" icon="/META-INF/toolBarIcon.svg"
                     factoryClass="pascal.taie.intellij.gui.toolwindow.ToolWindowFactoryImpl"/>

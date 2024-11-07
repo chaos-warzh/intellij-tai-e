@@ -252,13 +252,13 @@ public class TaintAnalysis extends CompositePlugin {
         solver.getResult().storeResult(getClass().getName(), taintFlows);
         TaintManager manager = context.manager();
         TaintFlowGraph tfg = new TFGBuilder(solver.getResult(), taintFlows, manager).build();
-        TFGYamlDumper yamlDumper = new TFGYamlDumper(tfg);
-        String tfgYaml = yamlDumper.dump();
-        solver.getResult().storeResult(TFGYamlDumper.class.getName(), tfgYaml);
-        logger.info("Taint Flow Graph:\n{}", tfgYaml);
         Timer.runAndCount(() -> new TFGDumper().dump(
                         tfg,
                         new File(World.get().getOptions().getOutputDir(), TAINT_FLOW_GRAPH_FILE)),
                 "TFGDumper");
+        // store taint flow graph in YAML format
+        TFGYamlDumper yamlDumper = new TFGYamlDumper(tfg);
+        String tfgYaml = yamlDumper.dump();
+        solver.getResult().storeResult(TFGYamlDumper.class.getName(), tfgYaml);
     }
 }

@@ -6,114 +6,41 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import pascal.taie.analysis.graph.flowgraph.ArrayIndexNode;
 import pascal.taie.analysis.graph.flowgraph.FlowEdge;
-import pascal.taie.analysis.graph.flowgraph.InstanceFieldNode;
 import pascal.taie.analysis.graph.flowgraph.Node;
 import pascal.taie.analysis.graph.flowgraph.ObjectFlowGraph;
-import pascal.taie.analysis.graph.flowgraph.StaticFieldNode;
-import pascal.taie.analysis.graph.flowgraph.VarNode;
-import pascal.taie.analysis.pta.plugin.taint.MetaData;
-import pascal.taie.analysis.pta.plugin.taint.Relation;
-import pascal.taie.language.classes.ClassMember;
+import pascal.taie.intellij.util.flowgraph.FGYamlDumper;
+import pascal.taie.intellij.util.flowgraph.MetaData;
+import pascal.taie.intellij.util.flowgraph.Var;
 import pascal.taie.language.classes.JClass;
 import pascal.taie.language.classes.JMethod;
-import pascal.taie.util.collection.Maps;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public class OFGYamlDumper {
+public class OFGYamlDumper extends FGYamlDumper {
 
     private static final Logger logger = LogManager.getLogger(pascal.taie.intellij.util.OFGYamlDumper.class);
 
-    public final MetaData metadata;
-
-    /**
-     * represent the relations among packages, classes, methods, variables and fields
-     */
-    public final Relation relation;
-
-    /**
-     * represent the taint flow path
-     */
-    public final Map<Long, List<Long>> graph;
-
     public OFGYamlDumper(ObjectFlowGraph ofg) {
+        OFGMetaDataBuilder ofgMetaDataBuilder = new OFGMetaDataBuilder(ofg);
+        metadata = ofgMetaDataBuilder.build();
         Set<Node> nodes = ofg.getNodes();
-        Collection<FlowEdge> edges = ofg.getNodes().stream()
+
+        buildRelationFromNodes(nodes);
+
+        Collection<FlowEdge> edges = nodes.stream()
                 .map(ofg::getOutEdgesOf)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 
-        List<JMethod> methodList = allMethods(nodes);
-        List<JClass> classList = allClassFromNodes(nodes, methodList);
-
-        metadata = new MetaData(nodes, Set.of(), Set.of(), methodList, classList);
-
-        relation = new Relation(nodes, Set.of(), Set.of(), metadata);
-
-        graph = Maps.newHybridMap();
-        edges.forEach(edge -> {
-            Long key = metadata.indexOfNode(edge.source().toString());
-            Long value = metadata.indexOfNode(edge.target().toString());
+        for (FlowEdge edge : edges) {
+            Long key = metadata.getId(edge.source().toString());
+            Long value = metadata.getId(edge.target().toString());
             addEdge(key, value);
-        });
-
-        graph.replaceAll((k, v) -> graph.get(k).stream().sorted().toList()); // delete distinct()
-
+        }
     }
 
-    /**
-     * get all methods that contain at least one variable in nodes
-     */
-    private List<JMethod> allMethods(Set<Node> nodes) {
-        List<JMethod> methodList = new ArrayList<>();
-        methodList.addAll(nodes.stream().filter(VarNode.class::isInstance)
-                .map(n -> ((VarNode) n).getVar().getMethod())
-                .toList());
-        methodList.addAll(nodes.stream().filter(ArrayIndexNode.class::isInstance)
-                .map(n -> {
-                    ArrayIndexNode ain = ((ArrayIndexNode) n);
-                    if (ain.getBase().getContainerMethod().isPresent()) {
-                        return ain.getBase().getContainerMethod().get();
-                    }
-                    throw new RuntimeException("Error occurs while finding container of an ArrayIndexNode ");
-                })
-                .toList());
-        return methodList;
-    }
-
-    /**
-     * get all classes which:
-     * 1.contain at least one field in nodes,
-     * 2.contain methods that contain at least one variable in nodes
-     */
-    private List<JClass> allClassFromNodes(Set<Node> nodes, List<JMethod> methodList) {
-        /* add class containing taint field */
-        List<JClass> classList = new ArrayList<>();
-        classList.addAll(nodes.stream().filter(InstanceFieldNode.class::isInstance)
-                .map(n -> ((InstanceFieldNode) n).getField().getDeclaringClass())
-                .toList());
-        classList.addAll(nodes.stream().filter(StaticFieldNode.class::isInstance)
-                .map(n -> ((StaticFieldNode) n).getField().getDeclaringClass())
-                .toList());
-
-        /* add class containing methods that contain taint */
-        classList.addAll(methodList.stream()
-                .map(ClassMember::getDeclaringClass)
-                .toList());
-        return classList;
-    }
-
-    private void addEdge(Long from, Long to) {
-        graph.computeIfAbsent(from, k -> new ArrayList<>());
-        graph.get(from).add(to);
-    }
 
     public String dump(){
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory()
@@ -127,4 +54,42 @@ public class OFGYamlDumper {
         }
         return null;
     }
+
+}
+
+
+class OFGMetaDataBuilder {
+    private final ObjectFlowGraph ofg;
+
+    public OFGMetaDataBuilder(ObjectFlowGraph ofg) {
+        this.ofg = ofg;
+    }
+
+    public MetaData build() {
+        MetaData metadata = new MetaData(new String[]{"package", "class", "method", "node"});
+
+        List<String> nodes = ofg.getNodes().stream().map(Objects::toString).sorted().distinct().toList();
+        nodes.forEach(n -> {
+            metadata.addVar(new Var(n, false, "node", "node"));
+        });
+
+        List<JMethod> allMethods = MetaData.allMethodsFromNodes(ofg.getNodes());
+        List<String> methods = allMethods.stream().map(JMethod::toString).sorted().distinct().toList();
+        methods.forEach(m -> {
+            metadata.addVar(new Var(m, true, "method"));
+        });
+
+        List<String> classes = MetaData.allClassesFromNodes(ofg.getNodes(), allMethods)
+                .stream().map(JClass::toString).sorted().distinct().toList();
+        classes.forEach(c -> {
+            metadata.addVar(new Var(c, true, "class"));
+        });
+
+        List<String> packages = classes.stream().map(MetaData::packageFromClass).sorted().distinct().toList();
+        packages.forEach(p -> {
+            metadata.addVar(new Var(p, true, "package"));
+        });
+        return metadata;
+    }
+
 }
