@@ -10,6 +10,9 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.5",
+    "@types/mockjs": "^1.0.10",
+    "@types/node": "^22.8.1",
+    "mockjs": "^1.1.0",
     "typescript": "^5.0.2",
     "vite": "^4.3.2"
   },

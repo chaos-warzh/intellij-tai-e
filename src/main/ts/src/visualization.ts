@@ -1,22 +1,7 @@
 import go, { Group, Model } from 'gojs';
 import { Graph } from './graph' ;
 import { Alias } from 'yaml';
-
-// const $ = go.GraphObject.make;
-// const myDiagram = $(go.Diagram, "myDiagramDiv",
-// {
-//     // layout: $(go.GridLayout,
-//     //     {
-//     //         wrappingColumn: 6,
-//     //         arrangement: go.GridLayout.Ascending,
-//     //         spacing: new go.Size(50,50),
-//     //         isRealtime: false,
-//     //     })
-//     layout: $(go.TreeLayout,
-//         {angle: 90}
-//     ),
-//     "undoManager.isEnabled": true
-// });
+import { group } from 'console';
 
 const $ = go.GraphObject.make;
 
@@ -50,29 +35,19 @@ export function visualize(graph: Graph){
             $(go.TextBlock, "isla", { margin: 10 },
                 new go.Binding("text", "key")
             ),
-            {
-                selectionAdornmentTemplate:
-                  $(go.Adornment, "Spot",
-                    $(go.Panel, "Auto",
-                        $(go.Shape, { fill: null, stroke: "black", strokeWidth: 4 }),
-                        $(go.Placeholder),
-                    ),
-                    $("Button",
-                        $(go.TextBlock, "trace"),
-                        { alignment: go.Spot.Bottom, alignmentFocus: go.Spot.Center, desiredSize: new go.Size(70,25), click: highlightPath },
-                    )
-                  ),
-            },
+            /*
+            
+            */
             $("Button",  // a replacement for "TreeExpanderButton" that works for non-tree-structured graphs
                 // assume initially not visible because there are no links coming out
-                { visible: false },
+                { visible: false, alignment: go.Spot.BottomCenter },
                 // bind the button visibility to whether it's not a leaf node
                 new go.Binding("visible", "isTreeLeaf", leaf => !leaf).ofObject(),
                 $(go.Shape,
                     {
                         name: "ButtonIcon",
                         figure: "MinusLine",
-                        desiredSize: new go.Size(6, 6)
+                        desiredSize: new go.Size(7, 7)
                     },
                 new go.Binding("figure", "isCollapsed",  // data.isCollapsed remembers "collapsed" or "expanded"
                                 collapsed => collapsed ? "PlusLine" : "MinusLine")),
@@ -131,6 +106,19 @@ export function visualize(graph: Graph){
                 $(go.Placeholder,
                 { padding: new go.Margin(0, 10) }),
             ),
+            {
+                selectionAdornmentTemplate:
+                  $(go.Adornment, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, { fill: null, stroke: "black", strokeWidth: 4 }),
+                        $(go.Placeholder),
+                    ),
+                    $("Button",
+                        $(go.TextBlock, "go-to-def"),
+                        { alignment: go.Spot.Top, alignmentFocus: go.Spot.Center, desiredSize: new go.Size(80,25), click: goToDef },
+                    )
+                  ),
+            },
         );
     myDiagram.nodes.each(function(n) {
         // myDiagram.startTransaction();
@@ -150,29 +138,16 @@ export function visualize(graph: Graph){
     myDiagram.links.each(link => link.visible = false);
 
     if(!buttonCreated){
+        
         LayersChangeButton("Remove Package", "Restore Package", graph, restorePackages, removePackages);
         LayersChangeButton("Remove Classes", "Restore Class", graph, restoreClasses, removeClasses);
-        LayersChangeButton("Remove Methods", "Restore Method", graph, restoreMethods, removeMethods);
-
+        LayersChangeButton("Remove Methods", "Restore Methods", graph, restoreMethods, removeMethods);
         //HighlightPathButton("Highlight Recommanded Paths", graph, highlightRecommandedPath);
-
-        ResetButton(graph, hideAll);
+        //ResetButton(graph, hideAll);
+        
         buttonCreated = true;
     }
     
-    // myDiagram.layout = $(go.TreeLayout, { angle: 90 });
-
-    // myDiagram.model = new go.GraphLinksModel(
-    //     [ { key: 1 },
-    //       { key: 2 },
-    //       { key: 3 },
-    //     ],
-    //     [ { from: 1, to: 3 },
-    //       { from: 2, to: 3 }] );
-    // myDiagram.nodes.each(function(n) {
-    //     n.wasTreeExpanded = false; 
-    //     n.isTreeExpanded = false;
-    // })
 }
 
 // ===================== LayersChangeButton Function =========================
@@ -182,6 +157,7 @@ var buttonCreated = false;
 let packageExist = true;
 let classExist = true;
 let methodExist = true;
+
 function LayersChangeButton(restoreState : string, removeState : string, graph : Graph, restoreFunc : (graph : Graph) => void, removeFunc : (graph : Graph) => void){
     var button = document.createElement("button");
     button.innerHTML = restoreState;
@@ -198,23 +174,24 @@ function LayersChangeButton(restoreState : string, removeState : string, graph :
     })
 }
 
+
 function removePackages(graph : Graph){
     myDiagram.startTransaction("remove Package");
-    graph.metadata.packages.forEach(removeGroup);
+    graph.metadata.groups.get("package")?.forEach(idx => removeGroup(graph.metadata.get(idx).name));
     myDiagram.commitTransaction("remove Package");
     packageExist = false;
 }
 
 function removeClasses(graph : Graph){
     myDiagram.startTransaction("remove Class");
-    graph.metadata.classes.forEach(removeGroup);
+    graph.metadata.groups.get("class")?.forEach(idx => removeGroup(graph.metadata.get(idx).name));
     myDiagram.commitTransaction("remove Class");
     classExist = false;
 }
 
 function removeMethods(graph : Graph){
     myDiagram.startTransaction("remove Method");
-    graph.metadata.methods.forEach(removeGroup);
+    graph.metadata.groups.get("method")?.forEach(idx => removeGroup(graph.metadata.get(idx).name));
     myDiagram.commitTransaction("remove Method");
     methodExist = false;
 }
@@ -232,12 +209,19 @@ function removeGroup(name: string){
 function restorePackages(graph : Graph){
     myDiagram.startTransaction("restore Package");
     // 恢复Package层需要先恢复Class层，而后再将Class层删去，做到只恢复Package层的效果
+    function execute(){
+        graph.metadata.groups.get("package")!.forEach(kid => {
+            const k = graph.metadata.get(kid).name;
+            const vv = graph.children.get(kid)!.filter(v => v !== undefined).map(v => graph.metadata.get(v).name);
+            restoreGroup(k, vv);
+        });
+    }
     if(!classExist){ 
         restoreClasses(graph);
-        graph.relation.packageToClasses.forEach((vc,kp) => restoreGroup(graph.metadata.getp(kp), vc.filter(v => v !== undefined).map(v => graph.metadata.getc(v))));
+        execute();
         removeClasses(graph);
     }else{
-        graph.relation.packageToClasses.forEach((vc,kp) => restoreGroup(graph.metadata.getp(kp), vc.filter(v => v !== undefined).map(v => graph.metadata.getc(v))));
+        execute();
     }
     myDiagram.commitTransaction("restore Package");
     packageExist = true;
@@ -246,12 +230,19 @@ function restorePackages(graph : Graph){
 function restoreClasses(graph : Graph){
     myDiagram.startTransaction("restore Class");
     // 恢复Class层需要先恢复Method层，理由同上
+    function execute(){
+        graph.metadata.groups.get("class")!.forEach(kid => {
+            const k = graph.metadata.get(kid).name;
+            const vv = graph.children.get(kid)!.filter(v => v !== undefined).map(v => graph.metadata.get(v).name);
+            restoreGroup(k, vv);
+        });
+    }
     if(!methodExist){
         restoreMethods(graph);
-        graph.relation.classToMethods.forEach((vm,kc) => restoreGroup(graph.metadata.getc(kc), vm.filter(v => v !== undefined).map(v => graph.metadata.getm(v))));
+        execute();
         removeMethods(graph);
     }else{
-        graph.relation.classToMethods.forEach((vm,kc) => restoreGroup(graph.metadata.getc(kc), vm.filter(v => v !== undefined).map(v => graph.metadata.getm(v))));
+        execute();
     }
     myDiagram.commitTransaction("restore Class");
     classExist = true;
@@ -259,8 +250,14 @@ function restoreClasses(graph : Graph){
 
 function restoreMethods(graph : Graph){
     myDiagram.startTransaction("restore Method");
-    graph.relation.methodToNodes.forEach((vv,km) => 
-        restoreGroup(graph.metadata.getm(km), vv.filter(v => v !== undefined).map(v => graph.metadata.getn(v))));
+    function execute(){
+        graph.metadata.groups.get("method")!.forEach(kid => {
+            const k = graph.metadata.get(kid).name;
+            const vv = graph.children.get(kid)!.filter(v => v !== undefined).map(v => graph.metadata.get(v).name);
+            restoreGroup(k, vv);
+        });
+    }
+    execute();
     myDiagram.commitTransaction("restore Method");
     methodExist = true;
 }
@@ -293,110 +290,6 @@ function restoreGroup(name: string, members : string[]){
     (parent.diagram as go.Diagram).model.setDataProperty(parent.data, "group", containGroupKey);
 }
 
-// ====================== HighlightPathButton ====================
-
-// todo: 找到对所有路径的合适可视化方式
-function HighlightPathButton(text: string, graph: Graph, highlight: (graph : Graph) => void){
-    var button = document.createElement("button");
-    button.innerHTML = text;
-    document.getElementById("buttonContainer")?.appendChild(button);
-    button.addEventListener("click", function(){
-        highlight(graph);
-    })
-}
-
-/*
-function highlightRecommandedPath(graph: Graph){
-    myDiagram.startTransaction("highlight recommanded paths");
-    graph.recommendedPaths.forEach(path=>{
-        // path.forEach(n=>{
-        //     let node = myDiagram.findNodeForKey(graph.metadata.getvf(n));
-        //     if(node !== null) {
-        //         node.diagram?.model.setDataProperty(node.data, "isHighlighted", true);
-        //     }
-        // })
-        for(var n = 0; n < path.length - 1; n++){
-            const currNode = myDiagram.findNodeForKey(graph.metadata.getn(path[n]));
-            const nextNode = myDiagram.findNodeForKey(graph.metadata.getn(path[n + 1]));
-            if(currNode === null || nextNode === null){
-                console.error("Nodes not found, isField-n: " + graph.isField(path[n]) + ", isField-(n+1)" + graph.isField(path[n + 1]));
-                return;
-            }
-
-            currNode.diagram?.model.setDataProperty(currNode, "isHighlighted", true);
-            currNode.diagram?.model.setDataProperty(currNode.data, "visible", true);
-            currNode.diagram?.model.setDataProperty(currNode.data, "isCollapsed", false);
-            var cg = currNode.containingGroup;
-            while(cg !== null && cg.visible !== true){
-                (cg.diagram as go.Diagram).model.setDataProperty(cg, "visible", true);
-                cg = cg.containingGroup;
-            }
-            
-            
-            currNode.findLinksTo(nextNode).each(l => {
-                l.diagram?.model.setDataProperty(l, "isHighlighted", true);
-                l.diagram?.model.setDataProperty(l, "visible", true);
-            });
-        }
-
-        const lastNode = myDiagram.findNodeForKey(graph.metadata.getn(path[path.length - 1]));
-        if(lastNode === null){
-            console.error("Nodes not found, isField-n: " + graph.isField(path[path.length - 1]));
-            return;
-        }
-        lastNode.diagram?.model.setDataProperty(lastNode, "isHighlighted", true);
-        lastNode.diagram?.model.setDataProperty(lastNode.data, "visible", true);
-        lastNode.diagram?.model.setDataProperty(lastNode.data, "isCollapsed", false);
-        var cg = lastNode.containingGroup;
-        while(cg !== null && cg.visible !== true){
-            (cg.diagram as go.Diagram).model.setDataProperty(cg, "visible", true);
-            cg = cg.containingGroup;
-        }
-    })
-    myDiagram.commitTransaction("highlight recommanded paths");
-}
-*/
-// ===================== ResetButton ========================
-
-function ResetButton(graph: Graph, hide: (graph: Graph) => void){
-    var button = document.createElement("button");
-    button.innerHTML = "Reset";
-    document.getElementById("buttonContainer")?.appendChild(button);
-    button.addEventListener("click", function(){
-        hide(graph);
-    })
-}
-
-function hideAll(graph: Graph){
-    myDiagram.startTransaction("hide All");
-    myDiagram.nodes.each(n=>{
-        if(n instanceof go.Node) {
-            n.diagram?.model.setDataProperty(n.data, "isCollapsed", true);
-            n.diagram?.model.setDataProperty(n.data, "visible", false);
-            while(n.containingGroup !== null){
-                let nd = n.containingGroup as go.Group;
-                if(nd.memberParts.any(m => m.isVisible())) break;
-                nd.diagram?.model.setDataProperty(nd, "isSubGraphExpanded", false);
-                nd.diagram?.model.setDataProperty(nd, "visible", false);
-                n = nd;
-            }
-        }
-    });
-    myDiagram.links.each(l=>l.diagram?.model.setDataProperty(l, "visible", false));
-    // graph.sourceNodes.forEach(num => {
-    //     const s = graph.metadata.getn(num);
-    //     var n = myDiagram.findNodeForKey(s) as go.Node;
-    //     n.diagram?.model.setDataProperty(n, "visible", true);
-    //     while(n.containingGroup !== null){
-    //         let nd = n.containingGroup as go.Group;
-    //         nd.diagram?.model.setDataProperty(nd, "isSubGraphExpanded", false);
-    //         nd.diagram?.model.setDataProperty(nd, "visible", true);
-    //         n = nd;
-    //     }
-    // })
-    myDiagram.commitTransaction("hide All");
-    // visualize(graph);
-}
 
 // ===============================================================
 // ===============================================================
@@ -453,6 +346,7 @@ function expandFrom(node: go.Node, start: go.Node) {
             // 若有Node变为可见，则Node所在的Group也得可见
             var cg = n.containingGroup;
             while(cg !== null && cg.visible !== true){
+                console.log(cg.key); // FIXME
                 (cg.diagram as go.Diagram).model.setDataProperty(cg, "visible", true);
                 cg = cg.containingGroup;
             }
@@ -476,6 +370,7 @@ function highlightPath(event: go.InputEvent, ador: go.GraphObject){
     mark(node, 4);
     diagram.commitTransaction("highlight");
 }
+
 function mark(node: go.Node, depth: number){
     if(depth === 0) return;
 
@@ -487,39 +382,42 @@ function mark(node: go.Node, depth: number){
     node.findNodesOutOf().each(n => mark(n, depth - 1));
 }
 
+function goToDef(event: go.InputEvent, ador: go.GraphObject){
+    const node = ((ador.part as go.Adornment).adornedPart) as go.Node;
+    const groupType = node.data.groupType;
+    const key = node.key;
+    window.javaQuery({
+        request: JSON.stringify({
+            type: 'goToDef',
+            data: JSON.stringify({
+                groupType: groupType,
+                signature: key
+            })
+        }),
+        persistent: false,
+        onSuccess: function(response: string) {
+            console.log(response);
+        },
+        onFailure: function(error_code: number, error_message: string) { }
+    })
+}
 
 
 function makeNodes(graph: Graph){
     const nodeDataArray: INode[] = [];
-    
-    graph.relation.packageToClasses.forEach((vc,kp)=>{
-        const pName:string = graph.metadata.getp(kp)
 
-        nodeDataArray.push({key: pName, isGroup: true, isHighlighted: false, isCollapsed: true});
-        vc.forEach(n=>{
-            if(graph.relation.classToMethods.get(n) !== undefined){
-                nodeDataArray.push({key:graph.metadata.getc(n), isGroup: true, group: pName, isHighlighted: false, isCollapsed: true});
-            }
-        });
-    })
+    graph.metadata.vars.forEach((node, index)=>{
+        const parent_idx = graph.getParent(index);
+        const parent = parent_idx != -1 ?graph.metadata.get(parent_idx) : null;
+        const group = parent ? parent.name : null;
+        const color = node.color ? node.color : 'lightblue';
+        if (group != null) {
+            nodeDataArray.push({key: node.name, isGroup: node.isGroup, groupType: node.groupType, color: color, group: group, isHighlighted: false, isCollapsed: true});
+        } else {
+            nodeDataArray.push({key: node.name, isGroup: node.isGroup, groupType: node.groupType, color: color, isHighlighted: false, isCollapsed: true});
+        }
+    });
 
-    graph.relation.classToMethods.forEach((vm, kc)=>{
-        const cName:string = graph.metadata.getc(kc);
-        vm.forEach(n=>{
-            if(graph.relation.methodToNodes.get(n) !== undefined){
-                nodeDataArray.push({key:graph.metadata.getm(n), isGroup: true, group: cName, isHighlighted: false, isCollapsed: true});
-            }
-        });
-    })
-
-    graph.relation.methodToNodes.forEach((vv, km)=>{
-        const mName:string = graph.metadata.getm(km);
-        vv.forEach(n=>{
-            //const color:string = graph.isSource(n)? 'gold' : (graph.isSink(n)? 'aquamarine' : 'lightblue');
-            const color:string = 'lightblue';
-            nodeDataArray.push({key: graph.metadata.getn(n), color: color, group: mName, isHighlighted: false, isCollapsed: true});
-        });
-    })
     console.log('finish nodes making');
     return nodeDataArray;
 }
@@ -528,7 +426,7 @@ function makeLinks(graph: Graph){
     const linkDataArray: ILink[] = [];
 
     graph.graph.forEach((v,k)=>{
-        v.forEach(n=>linkDataArray.push({from: graph.metadata.getn(k), to: graph.metadata.getn(n), color: 'black', isHighlighted: false, zOrder: 0}));
+        v.forEach(n=>linkDataArray.push({from: graph.metadata.get(k).name, to: graph.metadata.get(n).name, color: 'black', isHighlighted: false, zOrder: 0}));
     })
     console.log('finish links making');
     return linkDataArray;
@@ -539,6 +437,7 @@ interface INode{
     color?: string;
     isGroup?: boolean;
     group?: string;
+    groupType?: string;
     isHighlighted: boolean;
     isCollapsed: boolean;
 }
