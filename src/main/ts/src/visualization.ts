@@ -96,6 +96,7 @@ export function visualize(graph: Graph){
                 { fill: null, stroke: "gray", strokeWidth: 2 }),
             $(go.Panel, "Vertical",
                 { defaultAlignment: go.Spot.Left, margin: 4 },
+                { doubleClick: (e, panel) => goToDef(e, (panel.part as go.Node)) },
                 $(go.Panel, "Horizontal",
                     { defaultAlignment: go.Spot.Top },
                     $("SubGraphExpanderButton"),
@@ -115,7 +116,8 @@ export function visualize(graph: Graph){
                     ),
                     $("Button",
                         $(go.TextBlock, "go-to-def"),
-                        { alignment: go.Spot.Top, alignmentFocus: go.Spot.Center, desiredSize: new go.Size(80,25), click: goToDef },
+                        { alignment: go.Spot.Top, alignmentFocus: go.Spot.Center, desiredSize: new go.Size(80,25) },
+                        { click: (e, ador) => goToDef(e, ((ador.part as go.Adornment).adornedPart) as go.Node) },
                     )
                   ),
             },
@@ -202,7 +204,7 @@ function removeGroup(name: string){
 
     (group.diagram as go.Diagram).model.setDataProperty(group, "isSubGraphExpanded", true);
     group.memberParts.each(nodeOrGroup => (nodeOrGroup.diagram as go.Diagram).model.setDataProperty(nodeOrGroup.data, "group", group.containingGroup? group.containingGroup.key : null));
-    myDiagram.model.removeNodeData(myDiagram.model.findNodeDataForKey(name) as go.ObjectData);
+    (group.diagram as go.Diagram).model.setDataProperty(group, "visible", false);
 }
 
 
@@ -263,9 +265,8 @@ function restoreMethods(graph : Graph){
 }
 
 function restoreGroup(name: string, members : string[]){
-    myDiagram.model.addNodeData({key: name, isGroup: true, isHighlighted: false, isCollapsed: false});
-
-    const parent = myDiagram.findNodeForKey(name) as go.Group;  // 要恢复的Group
+    const parent = myDiagram.findNodeForKey(name) as go.Group;
+    (parent.diagram as go.Diagram).model.setDataProperty(parent, "visible", true);
     let containGroupKey;
 
     // 将要恢复的Group展开
@@ -382,8 +383,7 @@ function mark(node: go.Node, depth: number){
     node.findNodesOutOf().each(n => mark(n, depth - 1));
 }
 
-function goToDef(event: go.InputEvent, ador: go.GraphObject){
-    const node = ((ador.part as go.Adornment).adornedPart) as go.Node;
+function goToDef(event: go.InputEvent, node: go.Node){
     const groupType = node.data.groupType;
     const key = node.key;
     window.javaQuery({
