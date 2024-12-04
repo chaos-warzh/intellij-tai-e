@@ -2,6 +2,9 @@ package pascal.taie.intellij.actions;
 
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.OrderRootType;
+import com.intellij.openapi.roots.OrderEnumerator;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.ui.Messages;
 import org.jetbrains.annotations.NotNull;
 import pascal.taie.World;
@@ -18,6 +21,7 @@ import pascal.taie.intellij.util.OFGYamlDumper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public final class RunCustomizedAnalysisAction extends DefaultRun {
 
@@ -33,7 +37,25 @@ public final class RunCustomizedAnalysisAction extends DefaultRun {
         AnalyzeStarter.get().start(
                 project, "Running Tai-e analysis for project '" + project.getName() + "'...",
                 (String cp, String mainClass) -> {
-                    List<String> args = new ArrayList<>(List.of("-pp", "-cp", cp, "-m", mainClass)); // todo: NO Hardcode here!
+                    List<String> args = new ArrayList<>(List.of("-pp", "-acp", cp, "-m", mainClass)); // todo: NO Hardcode here!
+                     List<String> jarPaths = new ArrayList<>();
+                    // Enumerate through all dependencies
+                    OrderEnumerator.orderEntries(project).forEachLibrary(library -> {
+                        for (VirtualFile file : library.getFiles(OrderRootType.CLASSES)) {
+                            String jarPath = file.getPath();
+                            if (jarPath.endsWith(".jar!/")) {
+                                jarPaths.add(jarPath.substring(0, jarPath.length() - 2));
+                            }
+                        }
+                        return true;
+                    });
+                    args.addAll(jarPaths.stream()
+                            .flatMap(jarPath -> Stream.of("-cp", jarPath))
+                            .toList());
+                    String projectPath = project.getBasePath();
+                    if (projectPath != null) {
+                        args.addAll(List.of("--output-dir", projectPath + "/output"));
+                    }
                     args.addAll(List.of(options.split(" ")));
                     IntellijTaieMain.main(args.toArray(new String[0]));
                 },
