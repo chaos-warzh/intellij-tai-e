@@ -6,15 +6,18 @@ import com.intellij.openapi.ui.Messages;
 import org.jetbrains.annotations.NotNull;
 import pascal.taie.World;
 import pascal.taie.analysis.pta.PointerAnalysisResult;
+import pascal.taie.analysis.pta.plugin.taint.TaintFlow;
 import pascal.taie.intellij.IntellijTaieMain;
 import pascal.taie.intellij.gui.modal.view.TaieCustomizedConfigurable;
 import pascal.taie.intellij.analysis.AnalyzeStarter;
 import pascal.taie.intellij.gui.toolwindow.view.TaieToolWindowPanel;
 import pascal.taie.intellij.gui.webwindow.WebWindowService;
+import pascal.taie.intellij.services.CacheTaintFlowsService;
 import pascal.taie.intellij.util.OFGYamlDumper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public final class RunCustomizedAnalysisAction extends DefaultRun {
 
@@ -54,11 +57,14 @@ public final class RunCustomizedAnalysisAction extends DefaultRun {
                                 // dump OFG
                                 String ofgYaml = new OFGYamlDumper(pointerAnalysisResult.getObjectFlowGraph()).dump();
                                 if (ofgYaml != null) {
-                                    System.out.println(ofgYaml);
                                     project.getService(WebWindowService.class).reload("index.html", ofgYaml);
                                 }
                             }
 
+                            Set<TaintFlow> taintFlows = pointerAnalysisResult.getResult("pascal.taie.analysis.pta.plugin.taint.TaintAnalysis");
+                            if (taintFlows != null) {
+                                project.getService(CacheTaintFlowsService.class).updateTaintFlows(taintFlows);
+                            }
                         }
                     }
 
